@@ -113,9 +113,11 @@ def get_wallet(s):
     if not r.ok:
         return None, "GET /wallet HTTP %s: %s" % (r.status_code, r.text[:200])
     try:
-        return r.json(), None
+        j = r.json()
     except ValueError:
         return None, "响应不是 JSON: %s" % r.text[:200]
+    # 真实结构：{"wallet": {...}, "ledger": [...]}
+    return (j.get("wallet") or j), None
 
 
 # ---------------------------------------------------------------- turnstile
@@ -293,12 +295,33 @@ def claim(s, kind, solver=None, manual_token=None):
     return False, err or "http_%s" % code
 
 
+def _ts(ms):
+    if not ms:
+        return "-"
+    try:
+        return datetime.fromtimestamp(ms / 1000).strftime("%m-%d %H:%M")
+    except (OSError, ValueError):
+        return "-"
+
+
 def show_slots(wallet):
-    keys = {"daily": "dailyReward", "hourly": "hourlyReward",
-            "relief": "reliefReward", "copper": "copperReliefReward"}
-    print("  余额：赠金 %s / 铜板 %s" % (wallet.get("bonusBalance"), wallet.get("copperBalance")))
-    for k, f in keys.items():
-        print("  %-6s %-5s 面额 %s" % (LABELS[k], k, wallet.get(f)))
+    """wallet 真实字段：xxxAvailable / nextXxxAt / xxxReward"""
+    print("  余额：tokens %s / 赠金 %s / 铜板 %s" % (
+        wallet.get("balance"), wallet.get("bonusBalance"), wallet.get("copperBalance")))
+    slots = (
+        ("daily",  "dailyAvailable",  "nextDailyAt",  "dailyReward"),
+        ("hourly", "hourlyAvailable", "nextHourlyAt", "hourlyReward"),
+        ("relief", "reliefAvailable", "nextReliefAt", "reliefReward"),
+        ("copper", "copperReliefAvailable", "nextCopperReliefAt", "copperReliefReward"),
+    )
+    for kind, avail_f, next_f, reward_f in slots:
+        print("  %-6s %-5s 面额 %-8s %s  下次 %s" % (
+            LABELS[kind], kind, wallet.get(reward_f),
+            "可领" if wallet.get(avail_f) else "不可领",
+            _ts(wallet.get(next_f))))
+    rb = wallet.get("rewardBonus") or {}
+    if rb:
+        print("  倍率 x%s （%s 个有效项目）" % (rb.get("multiplier"), rb.get("validProjectCount")))
 
 
 def main():

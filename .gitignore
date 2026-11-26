@@ -2,6 +2,9 @@
 cookie.txt
 solver_keys.json
 
+# 浏览器 profile（含登录态，20MB+）
+.browser/
+
 # 运行时产物
 claim.log
 claim.test.log
