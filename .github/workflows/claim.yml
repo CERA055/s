@@ -1,0 +1,57 @@
+name: soliumbra-claim
+
+on:
+  schedule:
+    # UTC。每小时第 3 分触发。GitHub 的 schedule 有 1~15 分钟排队延迟，
+    # 所以别指望卡在整点 —— 整点补给通常是「整点后一段时间内可领」，实测再调。
+    - cron: "3 * * * *"
+  workflow_dispatch:
+    inputs:
+      kinds:
+        description: "要领取的类型，空格分隔（daily hourly）"
+        required: false
+        default: "hourly daily"
+
+concurrency:
+  group: claim
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: deps
+        run: pip install --quiet requests
+
+      - name: hourly
+        continue-on-error: true
+        env:
+          SOLIUMBRA_COOKIE: ${{ secrets.SOLIUMBRA_COOKIE }}
+          CAPSOLVER_KEY: ${{ secrets.CAPSOLVER_KEY }}
+          YESCAPTCHA_KEY: ${{ secrets.YESCAPTCHA_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python soliumbra_claim.py --kind hourly --notify --quiet-ok
+
+      - name: daily
+        continue-on-error: true
+        env:
+          SOLIUMBRA_COOKIE: ${{ secrets.SOLIUMBRA_COOKIE }}
+          CAPSOLVER_KEY: ${{ secrets.CAPSOLVER_KEY }}
+          YESCAPTCHA_KEY: ${{ secrets.YESCAPTCHA_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python soliumbra_claim.py --kind daily --notify --quiet-ok
+
+      # 401 说明 cookie 过期，用 action 失败提醒你（GitHub 会给你发邮件）
+      - name: cookie 有效性
+        env:
+          SOLIUMBRA_COOKIE: ${{ secrets.SOLIUMBRA_COOKIE }}
+        run: python soliumbra_claim.py --check

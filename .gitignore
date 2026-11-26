@@ -1,0 +1,13 @@
+# 凭证，绝不入库
+cookie.txt
+solver_keys.json
+
+# 运行时产物
+claim.log
+claim.test.log
+__pycache__/
+*.pyc
+
+# 逆向产物，不用入库
+index-*.js
+manifest.webmanifest
