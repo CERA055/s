@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
     一条命令把签到部署到 GitHub Actions。
 
@@ -16,7 +16,7 @@ param(
     [switch]$SkipRun
 )
 
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Continue"
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $here
 
@@ -37,14 +37,10 @@ if (-not $gh) {
     $gh = $cands | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
 }
 if (-not $gh) {
-    Fail @"
-没找到 gh (GitHub CLI)。
-
-装法任选：
-  winget install --id GitHub.cli -e
-  或下载 https://github.com/cli/cli/releases/latest 的 windows_amd64.zip，
-  解压到 $here\tools\gh\ 后重跑本脚本。
-"@
+    Fail ("没找到 gh (GitHub CLI)。`n" +
+          "装法: winget install --id GitHub.cli -e`n" +
+          "或下载 https://github.com/cli/cli/releases/latest 的 windows_amd64.zip，" +
+          "解压到 $here\tools\gh\ 后重跑本脚本。")
 }
 Ok "gh: $gh"
 
@@ -82,13 +78,14 @@ $who = (& $gh api user --jq .login 2>$null)
 Ok "已登录：$who"
 
 # ---------- 4. 建仓并推 ----------
-$existing = (& $gh repo view "$who/$Repo" --json name 2>$null)
+$existing = (& $gh repo view "$who/$Repo" --json name 2>&1 | Out-String)
 if ($LASTEXITCODE -eq 0 -and $existing) {
     Info "仓库 $who/$Repo 已存在，改为推送"
     git remote get-url origin *> $null
     if ($LASTEXITCODE -ne 0) { git remote add origin "https://github.com/$who/$Repo.git" }
-    git push -u origin main
+    git branch -M main; git push -u origin main
 } else {
+    git branch -M main
     $vis = if ($Public) { "--public" } else { "--private" }
     & $gh repo create $Repo $vis --source . --remote origin --push
     if ($LASTEXITCODE -ne 0) { Fail "建仓失败" }
@@ -97,12 +94,14 @@ Ok "代码已推送"
 
 # ---------- 5. 注入 Secrets ----------
 Info "写入 SOLIUMBRA_COOKIE"
-$raw | & $gh secret set SOLIUMBRA_COOKIE --repo "$who/$Repo" --body - 2>$null
-if ($LASTEXITCODE -ne 0) {
-    # 老版本 gh 不支持 --body -，退回管道
-    $raw | & $gh secret set SOLIUMBRA_COOKIE --repo "$who/$Repo"
-}
+# 注意：gh secret set 不带 --body 时从 stdin 读。
+# 千万别写 --body -，那会把字面量 "-" 当成值存进去。
+$raw | & $gh secret set SOLIUMBRA_COOKIE --repo "$who/$Repo"
 if ($LASTEXITCODE -ne 0) { Fail "写 secret 失败" }
+
+# 校验：secret 列表里必须有这个名字
+$secs = & $gh secret list --repo "$who/$Repo" 2>$null
+if ($secs -notmatch "SOLIUMBRA_COOKIE") { Fail "secret 没写上" }
 Ok "SOLIUMBRA_COOKIE 已注入"
 
 foreach ($pair in @(

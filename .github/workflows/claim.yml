@@ -20,6 +20,8 @@ jobs:
   run:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      TZ: Asia/Shanghai        # 日志时间按北京时间显示
     steps:
       - uses: actions/checkout@v4
 

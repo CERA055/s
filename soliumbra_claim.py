@@ -233,8 +233,24 @@ def post_claim(s, kind, token=None, ua=None):
     return r.status_code, data
 
 
+AVAIL_KEY = {"daily": "dailyAvailable", "hourly": "hourlyAvailable",
+             "relief": "reliefAvailable", "copper": "copperReliefAvailable"}
+NEXT_KEY = {"daily": "nextDailyAt", "hourly": "nextHourlyAt",
+            "relief": "nextReliefAt", "copper": "nextCopperReliefAt"}
+
+
 def claim(s, kind, solver=None, manual_token=None):
-    """返回 (ok: bool, note: str)"""
+    """返回 (ok: bool, note: str)。ok=True 包含「还没到点」这种正常态。"""
+    # 先看能不能领：不可领就别发请求，也让 CI 显示成成功而不是失败
+    w, werr = get_wallet(s)
+    if w is None:
+        log("%s 取钱包失败：%s" % (LABELS[kind], werr))
+        return False, "auth"
+    if not w.get(AVAIL_KEY[kind], True):
+        log("%s 现在不可领（下次 %s），跳过"
+            % (LABELS[kind], _ts(w.get(NEXT_KEY[kind]))))
+        return True, "not_available"
+
     code, data = post_claim(s, kind)
 
     if code == 401:
@@ -284,12 +300,17 @@ def claim(s, kind, solver=None, manual_token=None):
             return True, "claimed_after_turnstile"
 
         err2 = data2.get("error") or data2.get("code") or ""
-        if err2 == "hourly_not_ready":       # 带 token 后仍报未就绪 = 到点/已领
-            log("%s 验证通过但未到领取时间（hourly_not_ready）" % LABELS[kind])
+        if err2 in ("hourly_not_ready", "daily_not_ready", "not_ready"):
+            log("%s 验证通过但未到领取时间（%s）" % (LABELS[kind], err2))
             return True, "not_ready"
         log("%s 回填后仍失败 HTTP %s: %s"
             % (LABELS[kind], code2, json.dumps(data2, ensure_ascii=False)[:300]))
         return False, "after_turnstile_failed"
+
+    # 服务端说「还没到点」也算正常，不要当失败
+    if str(err).endswith("_not_ready"):
+        log("%s 未到领取时间（%s）" % (LABELS[kind], err))
+        return True, "not_ready"
 
     log("%s 失败 HTTP %s code=%s: %s" % (LABELS[kind], code, err, msg[:200]))
     return False, err or "http_%s" % code
