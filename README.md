@@ -146,3 +146,62 @@ ALL PASS
 ```bash
 python test_stepup.py
 ```
+
+---
+
+## 八、当前部署状态（2026-11-27 00:25）
+
+| 项 | 值 |
+|---|---|
+| 仓库 | https://github.com/CERA055/soliumbra-claim （private） |
+| 工作流 | `claim.yml`，`cron: "3 * * * *"` → 每小时第 3 分跑 |
+| Secret | `SOLIUMBRA_COOKIE`（`s_session` 那一条，53 字节） |
+| 首次验证 | run 45858142698，14s，全绿 |
+| 实测领取 | 2026-11-27 00:00:52 daily +700000；00:01:00 hourly +140000，全程未触发 Turnstile |
+
+> schedule 只在**默认分支**上生效，所以 `git branch -M main` 那步是必须的。
+
+## 九、配置时踩到的坑（都是真踩出来的）
+
+1. **gh 打印 "Authentication complete." 后不能立刻杀进程。**
+   它还要写 hosts/凭据库，脚本一 `terminate()`，授权在 GitHub 侧成功但本地什么都没留。
+   表现为「明明授权了，`gh auth status` 还说没登录」。必须 `proc.wait()` 等它自己退出。
+
+2. **推送 `.github/workflows/*.yml` 需要 `workflow` scope。**
+   默认 `repo` scope 不够，报 `refusing to allow an OAuth App to create or update workflow`。
+   `gh auth refresh -h github.com -s workflow` 补上。
+
+3. **PowerShell 5.1 会把无 BOM 的 UTF-8 `.ps1` 当 GBK 读。**
+   中文全变乱码（`瑙ｅ帇鍒?`），引号错配报一堆 `MissingEndCurlyBrace`。
+   解决办法：脚本存成 UTF-8 **with BOM**。
+
+4. **here-string 的结束符 `"@` 必须顶格**，缩进就会解析失败。
+
+5. **`gh secret set` 不要写 `--body -`**，那会把字面量 `-` 存成 secret 值。
+   不给 `--body` 时它从 stdin 读，管道传进去才对。
+
+6. **本地分支 `master` vs 仓库默认 `main`**：`git push -u origin main` 会 refspec 不匹配。
+
+7. **`$ErrorActionPreference = "Stop"` 会把原生命令的 stderr 当终止错误**，
+   `gh repo view` 查一个不存在的仓库就直接中断脚本。改成 `Continue` 自己看 `$LASTEXITCODE`。
+
+8. **Android 上浏览器 cookie 拿不到**：未 root 时 `/data/data` 不可达，且 v20 用
+   Android Keystore 加密。**桌面 Edge 的 Cookies 文件被运行中的进程独占锁定**，
+   `copy2`、纯字节读、`immutable=1` URI 全部 `PermissionError`。
+   最后是 Playwright 的 `context.cookies()` 直接拿内存里的 cookie 解决的 ——
+   这是唯一能拿到 HttpOnly 会话的方式。
+
+## 十、cookie 过期怎么办
+
+Discord OAuth 的 session 会失效（通常几天到几周）。表现是 workflow 最后那个
+`cookie 有效性` 步骤红掉，GitHub 会给你发邮件。
+
+重新拿 cookie 只要：
+
+```bash
+python capture_login.py     # 弹 Chrome，登录一次，自动写 cookie.txt
+python deploy.ps1 -SkipRun  # 推送并更新 secret
+```
+
+`capture_login.py` 用的是持久化 profile（`.browser/`），Discord 那边通常还是登录态，
+点一下就过。
