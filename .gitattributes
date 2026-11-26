@@ -1,0 +1,7 @@
+# Windows 上 core.autocrlf=true 会把 shell 脚本转成 CRLF，
+# 到了 Termux 里 shebang 就废了（bad interpreter）。强制 LF。
+*.sh   text eol=lf
+*.py   text eol=lf
+*.yml  text eol=lf
+*.md   text eol=lf
+*      text=auto
