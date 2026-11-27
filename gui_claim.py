@@ -40,7 +40,13 @@ LABELS = {"daily": "每日签到", "hourly": "整点补给",
 
 
 def load_cookies():
-    raw = open(COOKIE_FILE, encoding="utf-8-sig").read().strip().lstrip("\ufeff")
+    # CI 上没有 cookie.txt（已 gitignore），走 S_COOKIE 环境变量
+    raw = os.environ.get("S_COOKIE", "").strip()
+    if not raw:
+        if not os.path.exists(COOKIE_FILE):
+            sys.exit("没有 cookie：设 S_COOKIE 环境变量，或写 cookie.txt")
+        raw = open(COOKIE_FILE, encoding="utf-8-sig").read().strip()
+    raw = raw.lstrip("\ufeff")
     if raw.lower().startswith("cookie:"):
         raw = raw[7:]
     out = []
