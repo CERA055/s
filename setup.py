@@ -25,7 +25,7 @@ except ImportError:
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
-import soliumbra_claim as M  # noqa: E402
+import s_claim as M  # noqa: E402
 
 CURL_COOKIE = re.compile(r"""-H\s+['"]cookie:\s*([^'"]+)['"]""", re.I)
 BARE_COOKIE = re.compile(r"^\s*(cookie:\s*)?(.+?=.+)$", re.I | re.S)
@@ -149,9 +149,9 @@ def main():
         print("跳过。之后可以手动建 solver_keys.json，或设 CAPSOLVER_KEY 环境变量。")
 
     print("\n下一步：")
-    print("  python soliumbra_claim.py --check")
-    print("  python soliumbra_claim.py --kind daily")
-    print("  python soliumbra_claim.py --kind hourly")
+    print("  python s_claim.py --check")
+    print("  python s_claim.py --kind daily")
+    print("  python s_claim.py --kind hourly")
     return 0
 
 

@@ -58,7 +58,7 @@ if (Z === "hourly" && z instanceof Ze && z.code === "hourly_turnstile_required")
 ```bash
 git init && git add . && git commit -m init
 git branch -M main
-git remote add origin git@github.com:<你>/soliumbra-claim.git
+git remote add origin git@github.com:<你>/s.git
 git push -u origin main
 ```
 
@@ -71,7 +71,7 @@ Repo → Settings → Secrets and variables → Actions → New repository secre
 
 | Name | 值 |
 |---|---|
-| `SOLIUMBRA_COOKIE` | 浏览器里复制的完整 Cookie 头（含 `cf_clearance`、`__cf_bm`） |
+| `S_COOKIE` | 浏览器里复制的完整 Cookie 头（含 `cf_clearance`、`__cf_bm`） |
 | `CAPSOLVER_KEY` | CapSolver 的 key（可选，但 hourly 大概率需要） |
 | `YESCAPTCHA_KEY` | 备选打码平台（可选） |
 | `TELEGRAM_BOT_TOKEN` | 可选，失败时推送到 Telegram |
@@ -79,7 +79,7 @@ Repo → Settings → Secrets and variables → Actions → New repository secre
 
 ### 3. 试跑
 
-Actions → soliumbra-claim → Run workflow。看日志里 `登录态 OK` 和 `汇总 -> ...`。
+Actions → s → Run workflow。看日志里 `登录态 OK` 和 `汇总 -> ...`。
 
 ### 4. 已知限制
 
@@ -96,7 +96,7 @@ Actions → soliumbra-claim → Run workflow。看日志里 `登录态 OK` 和 `
 ```bash
 pkg install python termux-api
 pip install requests
-mkdir -p ~/soliumbra && cd ~/soliumbra   # 放 soliumbra_claim.py + cookie.txt
+mkdir -p ~/s && cd ~/s   # 放 s_claim.py + cookie.txt
 chmod +x run_termux.sh
 mkdir -p ~/.termux/boot
 cp run_termux.sh ~/.termux/boot/claim.sh && chmod +x ~/.termux/boot/claim.sh
@@ -114,10 +114,10 @@ cp run_termux.sh ~/.termux/boot/claim.sh && chmod +x ~/.termux/boot/claim.sh
 ## 六、用法
 
 ```bash
-python soliumbra_claim.py --check                     # 验登录态
-python soliumbra_claim.py --kind daily
-python soliumbra_claim.py --kind hourly               # 有打码平台会自动用
-python soliumbra_claim.py --all --notify --quiet-ok   # daily + hourly，只在失败时推 TG
+python s_claim.py --check                     # 验登录态
+python s_claim.py --kind daily
+python s_claim.py --kind hourly               # 有打码平台会自动用
+python s_claim.py --all --notify --quiet-ok   # daily + hourly，只在失败时推 TG
 ```
 
 退出码：
@@ -141,7 +141,7 @@ ALL PASS
 ```
 
 断言了「回填请求的 UA 必须换成解 token 时的 UA」。另外实测过环境变量注入路径能正常打到
-真实站点（`SOLIUMBRA_COOKIE` 伪造值 → 真实 401，退出码 2）。
+真实站点（`S_COOKIE` 伪造值 → 真实 401，退出码 2）。
 
 ```bash
 python test_stepup.py
@@ -153,9 +153,9 @@ python test_stepup.py
 
 | 项 | 值 |
 |---|---|
-| 仓库 | https://github.com/CERA055/soliumbra-claim （private） |
+| 仓库 | https://github.com/CERA055/s （private） |
 | 工作流 | `claim.yml`，`cron: "3 * * * *"` → 每小时第 3 分跑 |
-| Secret | `SOLIUMBRA_COOKIE`（`s_session` 那一条，53 字节） |
+| Secret | `S_COOKIE`（`s_session` 那一条，53 字节） |
 | 首次验证 | run 45858142698，14s，全绿 |
 | 实测领取 | 2026-11-27 00:00:52 daily +700000；00:01:00 hourly +140000，全程未触发 Turnstile |
 
@@ -233,7 +233,7 @@ GitHub 免费额度按分钟计（private repo 2000 分钟/月），
 
 1. **外部定时器**（推荐）：cron-job.org 免费，每小时 POST 一次 GitHub dispatch API
    ```
-   POST https://api.github.com/repos/CERA055/soliumbra-claim/actions/workflows/claim.yml/dispatches
+   POST https://api.github.com/repos/CERA055/s/actions/workflows/claim.yml/dispatches
    Authorization: Bearer <fine-grained PAT, 只开 Actions:write>
    Accept: application/vnd.github+json
    Body: {"ref":"main"}

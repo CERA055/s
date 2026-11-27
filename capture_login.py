@@ -26,7 +26,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 PROFILE = os.path.join(HERE, ".browser")
 OUT = os.path.join(HERE, "cookie.txt")
 BASE = "https://casino.soliumbra.com"
-DOMAIN_HINT = "soliumbra"
+DOMAIN_HINT = "s"
 
 
 def launch(p, headless):

@@ -24,11 +24,11 @@ casino.soliumbra.com 自动领取（daily / hourly / relief / copper）
   * token 与 cData 绑定，且打码平台返回的 UA 必须原样用于回填请求
 
 用法：
-    python soliumbra_claim.py --check
-    python soliumbra_claim.py --kind daily
-    python soliumbra_claim.py --kind hourly
-    python soliumbra_claim.py --kind hourly --provider capsolver
-    python soliumbra_claim.py --kind hourly --turnstile "<手动拿到的 token>"
+    python s_claim.py --check
+    python s_claim.py --kind daily
+    python s_claim.py --kind hourly
+    python s_claim.py --kind hourly --provider capsolver
+    python s_claim.py --kind hourly --turnstile "<手动拿到的 token>"
 """
 
 import argparse
@@ -79,10 +79,10 @@ def log(msg):
 
 def build_session():
     # 优先级：环境变量（GitHub Actions / 云函数）> cookie.txt（本地 / Termux）
-    raw = os.environ.get("SOLIUMBRA_COOKIE", "").strip()
+    raw = os.environ.get("S_COOKIE", "").strip()
     if not raw:
         if not os.path.exists(COOKIE_FILE):
-            sys.exit("没有 cookie：设 SOLIUMBRA_COOKIE 环境变量，或写 %s" % COOKIE_FILE)
+            sys.exit("没有 cookie：设 S_COOKIE 环境变量，或写 %s" % COOKIE_FILE)
         # utf-8-sig：Windows 记事本 / Set-Content 会写 BOM，
         # BOM 混进 cookie 值会让 urllib3 抛 latin-1 编码错误
         raw = open(COOKIE_FILE, encoding="utf-8-sig").read().strip()
@@ -362,7 +362,7 @@ def main():
     if wallet is None:
         log(err)
         if args.notify:
-            notify("soliumbra 登录态失效，需要重新导出 cookie")
+            notify("s 登录态失效，需要重新导出 cookie")
         return 2
     log("登录态 OK")
     show_slots(wallet)
@@ -398,7 +398,7 @@ def main():
     summary = "\n".join(lines)
     log("汇总 -> %s" % summary.replace("\n", " | "))
     if args.notify and not (args.quiet_ok and worst == 0):
-        notify("soliumbra 领取\n" + summary)
+        notify("s 领取\n" + summary)
     return worst
 
 

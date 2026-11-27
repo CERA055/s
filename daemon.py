@@ -20,7 +20,7 @@ from datetime import datetime, timedelta
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
-import soliumbra_claim as M  # noqa: E402
+import s_claim as M  # noqa: E402
 
 
 def log(msg):

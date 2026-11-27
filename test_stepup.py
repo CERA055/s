@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 离线验证 step-up 流程：本地起 mock server，模拟服务端索要 Turnstile，
-确认 soliumbra_claim.py 能解析 details、调 solver、回填 token 并换 UA。
+确认 s_claim.py 能解析 details、调 solver、回填 token 并换 UA。
 
     python test_stepup.py
 """
@@ -15,7 +15,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
-import soliumbra_claim as M   # noqa: E402
+import s_claim as M   # noqa: E402
 
 SITEKEY = "0x4AAAAAAA_test_sitekey"
 CDATA = "cdata-abc123"

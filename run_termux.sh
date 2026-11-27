@@ -3,7 +3,7 @@
 #
 #   pkg install python termux-api cronie
 #   pip install requests
-#   mkdir -p ~/soliumbra && cd ~/soliumbra   # 放 soliumbra_claim.py 和 cookie.txt
+#   mkdir -p ~/s && cd ~/s   # 放 s_claim.py 和 cookie.txt
 #   mkdir -p ~/.termux/boot
 #   cp run_termux.sh ~/.termux/boot/claim.sh && chmod +x ~/.termux/boot/claim.sh
 #
@@ -14,7 +14,7 @@
 
 set -u
 cd "$(dirname "$0")/.." 2>/dev/null || true
-[ -f soliumbra_claim.py ] || cd "$HOME/soliumbra" || exit 1
+[ -f s_claim.py ] || cd "$HOME/s" || exit 1
 
 NOTIFY="--notify --quiet-ok"
 [ -n "${TELEGRAM_BOT_TOKEN:-}" ] || NOTIFY=""
@@ -31,10 +31,10 @@ while true; do
   if [ "$M" = "05" ]; then
     if [ "$H" = "00" ]; then
       # 零点这一轮把 daily 一起做掉
-      python soliumbra_claim.py --all $NOTIFY >> claim.log 2>&1
+      python s_claim.py --all $NOTIFY >> claim.log 2>&1
     else
       # 整点后 5 分领补给（会被 turnstile 拦就靠打码平台）
-      python soliumbra_claim.py --kind hourly $NOTIFY >> claim.log 2>&1
+      python s_claim.py --kind hourly $NOTIFY >> claim.log 2>&1
     fi
     # 跳过本分钟剩余时间，避免同一分钟重复触发
     sleep 50

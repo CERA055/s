@@ -1,4 +1,4 @@
-name: soliumbra-claim
+name: s
 
 on:
   schedule:
@@ -33,7 +33,7 @@ jobs:
 
       - name: daemon
         env:
-          SOLIUMBRA_COOKIE: ${{ secrets.SOLIUMBRA_COOKIE }}
+          S_COOKIE: ${{ secrets.S_COOKIE }}
           CAPSOLVER_KEY: ${{ secrets.CAPSOLVER_KEY }}
           YESCAPTCHA_KEY: ${{ secrets.YESCAPTCHA_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}

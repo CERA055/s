@@ -1,4 +1,4 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 <#
     一条命令把签到部署到 GitHub Actions。
 
@@ -11,7 +11,7 @@
       powershell -ExecutionPolicy Bypass -File deploy.ps1 -Repo my-claim -Public
 #>
 param(
-    [string]$Repo = "soliumbra-claim",
+    [string]$Repo = "s",
     [switch]$Public,
     [switch]$SkipRun
 )
@@ -58,7 +58,7 @@ Info ("cookie 长度 {0} 字节" -f $raw.Length)
 Write-Host "`n验证 cookie 是否还有效…"
 $py = (Get-Command python -ErrorAction SilentlyContinue).Source
 if (-not $py) { Fail "没找到 python" }
-& $py soliumbra_claim.py --check
+& $py s_claim.py --check
 if ($LASTEXITCODE -ne 0) {
     Fail "cookie 验证没过（退出码 $LASTEXITCODE）。回浏览器重新登录后重跑 setup.py。"
 }
@@ -93,16 +93,16 @@ if ($LASTEXITCODE -eq 0 -and $existing) {
 Ok "代码已推送"
 
 # ---------- 5. 注入 Secrets ----------
-Info "写入 SOLIUMBRA_COOKIE"
+Info "写入 S_COOKIE"
 # 注意：gh secret set 不带 --body 时从 stdin 读。
 # 千万别写 --body -，那会把字面量 "-" 当成值存进去。
-$raw | & $gh secret set SOLIUMBRA_COOKIE --repo "$who/$Repo"
+$raw | & $gh secret set S_COOKIE --repo "$who/$Repo"
 if ($LASTEXITCODE -ne 0) { Fail "写 secret 失败" }
 
 # 校验：secret 列表里必须有这个名字
 $secs = & $gh secret list --repo "$who/$Repo" 2>$null
-if ($secs -notmatch "SOLIUMBRA_COOKIE") { Fail "secret 没写上" }
-Ok "SOLIUMBRA_COOKIE 已注入"
+if ($secs -notmatch "S_COOKIE") { Fail "secret 没写上" }
+Ok "S_COOKIE 已注入"
 
 foreach ($pair in @(
     @{ n = "TELEGRAM_BOT_TOKEN"; f = "telegram_token.txt" },

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 从本机 Chromium 系浏览器（Chrome / Edge / Brave）取出指定站点的 Cookie，
-并写成 soliumbra_claim.py 认的 cookie.txt。
+并写成 s_claim.py 认的 cookie.txt。
 
 只在你自己机器上读你自己的浏览器数据。需要同用户身份运行（DPAPI 限制）。
 
