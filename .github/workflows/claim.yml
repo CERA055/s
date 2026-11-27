@@ -1,50 +1,46 @@
 name: s
 
-# 云端领取实验：用 xvfb 虚拟显示跑有头 Chrome，走和本地 gui_claim 一样的路径
-# （点页面按钮 → CF 给交互式验证 → 点 iframe 复选框）。
-# 如果这条能通，电脑关机也能领，且零成本。
+# 云端领取：xvfb 虚拟显示 + patchright 有头 Chrome，
+# 点页面按钮 → CF 给交互式验证 → 点 iframe checkbox → 通过。
+# 这条路径在 2026-11-27 23:01 实测成功（+140000），不依赖本地设备开机。
+#
+# 为什么每小时排 3 次：GitHub 的 schedule 实测极不可靠（曾 11 小时只触发 1 次，
+# 整点前后更是高负载丢弃区）。排 :13/:33/:53 三个点，丢两次还剩一次。
+# public repo 的 Actions 分钟数免费无限，多跑不心疼。
+#
+# cookie 过期时 gui_claim 退出码 2 → job 红 → GitHub 发邮件告警。
 
 on:
   schedule:
-    # 每天 09:13 北京时间做 cookie 健康探针
-    - cron: "13 1 * * *"
+    - cron: "13 * * * *"
+    - cron: "33 * * * *"
+    - cron: "53 * * * *"
   workflow_dispatch:
-    inputs:
-      mode:
-        description: "check = 只查 cookie；claim = 用 xvfb 浏览器领一次"
-        required: false
-        default: "check"
+
+concurrency:
+  # 同一时间只跑一份，避免重复领取互相干扰
+  group: claim
+  cancel-in-progress: false
 
 jobs:
-  check:
-    if: github.event.inputs.mode != 'claim'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    env:
-      TZ: Asia/Shanghai
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - run: pip install --quiet requests
-      - name: cookie 有效性
-        env:
-          S_COOKIE: ${{ secrets.S_COOKIE }}
-        run: python s_claim.py --check
-
-  claim-gui:
-    if: github.event.inputs.mode == 'claim'
+  claim:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
       TZ: Asia/Shanghai
+
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
+      - name: 缓存 pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-patchright-v1
 
       - name: 装 xvfb 和依赖
         run: |
@@ -52,18 +48,22 @@ jobs:
           sudo apt-get install -y -qq xvfb fonts-noto-cjk
           pip install --quiet patchright requests
 
-      - name: 系统 Chrome 版本
-        run: google-chrome --version || chromium --version || echo "没有系统 chrome"
-
-      - name: 用虚拟显示跑有头浏览器领取
+      - name: 整点补给
         env:
           S_COOKIE: ${{ secrets.S_COOKIE }}
         run: |
           xvfb-run -a --server-args="-screen 0 1600x900x24" \
-            python gui_claim.py --kind hourly --wait 45 || echo "gui_claim 退出码 $?"
+            python gui_claim.py --kind hourly --wait 45
 
-      - name: 上传失败截图
-        if: always()
+      - name: 每日签到
+        env:
+          S_COOKIE: ${{ secrets.S_COOKIE }}
+        run: |
+          xvfb-run -a --server-args="-screen 0 1600x900x24" \
+            python gui_claim.py --kind daily --wait 45
+
+      - name: 失败时留证据
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: gui-shots
