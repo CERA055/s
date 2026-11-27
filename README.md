@@ -205,3 +205,47 @@ python deploy.ps1 -SkipRun  # 推送并更新 secret
 
 `capture_login.py` 用的是持久化 profile（`.browser/`），Discord 那边通常还是登录态，
 点一下就过。
+---
+
+## 十一、cron 踩坑：整点高负载会直接丢掉任务
+
+**现象**：2026-11-27 00:25 部署完成，到 11:33 只有 **1 次** `schedule` 运行（08:57），
+其余 11 个小时的 cron 全部没触发。补领只能靠手动 `gh workflow run`。
+
+**根因**：`cron: "3 * * * *"` 撞在 GitHub 官方点名的拥堵时段。
+
+> High load times include the start of every hour. To decrease the chance of delay,
+> schedule your workflow to run at a different time of the hour.
+> — GitHub Docs, *Events that trigger workflows → schedule*
+
+`:00~:05` 是全网仓库最集中的区间，任务被延迟甚至静默丢弃。这不是延迟，是**丢**。
+
+**修复**：改成 `17` 和 `47`，双份冗余，都避开整点。
+
+**一个有用的实测结论**：整点补给**整点后整小时都能领**——
+08:57 领到、11:34 领到，都在整点后 30~57 分钟。所以完全不用卡整点，
+只要每小时可靠触发一次就行。
+
+### 如果错峰之后还是漏
+
+GitHub 免费额度按分钟计（private repo 2000 分钟/月），
+2 次/小时 ≈ 1488 分钟/月已经接近上限，不能再加次数。兜底两条路：
+
+1. **外部定时器**（推荐）：cron-job.org 免费，每小时 POST 一次 GitHub dispatch API
+   ```
+   POST https://api.github.com/repos/CERA055/soliumbra-claim/actions/workflows/claim.yml/dispatches
+   Authorization: Bearer <fine-grained PAT, 只开 Actions:write>
+   Accept: application/vnd.github+json
+   Body: {"ref":"main"}
+   ```
+   需要一个新的 fine-grained PAT，权限只给这一个仓库的 `Actions: write`。
+
+2. **仓库转 public + 长跑 job**：public repo 的 Actions 分钟数免费无限，
+   可以起一个 `timeout-minutes: 330` 的 job 内部循环领，对 cron 的依赖从每小时降到每 5.5 小时。
+   代价是代码和运行日志公开（cookie 在 secret 里不会泄露，但余额会打在日志里）。
+
+### 当前限制
+
+- 2 次/小时覆盖 11 分钟和 41 分钟两个时间点，仍可能漏。
+- 漏了就是漏了——`hourly` 每小时重置，无法补领。
+- 每次运行约 15 秒，按分钟计费向上取整。
