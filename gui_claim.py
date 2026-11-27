@@ -105,7 +105,14 @@ def main():
             ctx.add_cookies(load_cookies())
             page = ctx.pages[0] if ctx.pages else ctx.new_page()
             page.goto(BASE + "/wallet", wait_until="domcontentloaded", timeout=60000)
-            page.wait_for_timeout(3000)
+            # SPA 首屏要拉 1.3MB JS，前面固定等 3 秒经常还停在「正在推开庙门……」。
+            # 改成等账房的特征元素出现，再兜底多给几秒。
+            try:
+                page.wait_for_selector("text=供品与兑换", timeout=30000)
+            except Exception:
+                print("  等「供品与兑换」超时，再等 8 秒兜底")
+                page.wait_for_timeout(8000)
+            page.wait_for_timeout(1200)
 
             btn = page.locator('button[aria-label*="%s"]' % label).filter(
                 has_text=re.compile("领取"))

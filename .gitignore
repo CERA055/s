@@ -18,3 +18,5 @@ manifest.webmanifest
 gui.log
 gui_*.png
 ci_art/
+
+pot.txt

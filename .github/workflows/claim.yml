@@ -49,6 +49,7 @@ jobs:
           pip install --quiet patchright requests
 
       - name: 整点补给
+        continue-on-error: true      # 单独失败不能挡住下面的 daily
         env:
           S_COOKIE: ${{ secrets.S_COOKIE }}
         run: |
@@ -56,6 +57,7 @@ jobs:
             python gui_claim.py --kind hourly --wait 45
 
       - name: 每日签到
+        continue-on-error: true
         env:
           S_COOKIE: ${{ secrets.S_COOKIE }}
         run: |
