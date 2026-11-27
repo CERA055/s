@@ -2,29 +2,25 @@ name: soliumbra-claim
 
 on:
   schedule:
-    # 千万别用 :00~:05！GitHub 官方文档明确说「每小时整点是高负载时段，
-    # 定时任务会被延迟甚至丢弃」。
-    # 第一版用 "3 * * * *"，结果 11 小时只漏出 1 次运行（08:57 才被调度）。
-    # 现在错峰到 :17 和 :47 双份冗余。实测整点后整小时都能领，不必卡整点。
-    - cron: "17 * * * *"
-    - cron: "47 * * * *"
+    # 这个 cron 现在只当「唤醒信号」。真正干活的是 daemon.py：
+    # 每次唤醒连续跑 5.5 小时，自己按整点领。
+    # 所以 cron 丢多少次都不致命 —— 只要 5.5 小时内成功唤醒一次就能续上。
+    # 实测 "3 * * * *" 在这种仓库上 11 小时只触发 1 次，所以选了非整点的 :07。
+    - cron: "7 * * * *"
   workflow_dispatch:
-    inputs:
-      kinds:
-        description: "要领取的类型，空格分隔（daily hourly）"
-        required: false
-        default: "hourly daily"
 
 concurrency:
+  # 同一时间只跑一个。新触发的会排队，等当前那个跑完（5.5h）立刻接手。
   group: claim
   cancel-in-progress: false
 
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # GitHub 单个 job 上限 6 小时，留 10 分钟余量
+    timeout-minutes: 350
     env:
-      TZ: Asia/Shanghai        # 日志时间按北京时间显示
+      TZ: Asia/Shanghai
     steps:
       - uses: actions/checkout@v4
 
@@ -35,28 +31,11 @@ jobs:
       - name: deps
         run: pip install --quiet requests
 
-      - name: hourly
-        continue-on-error: true
+      - name: daemon
         env:
           SOLIUMBRA_COOKIE: ${{ secrets.SOLIUMBRA_COOKIE }}
           CAPSOLVER_KEY: ${{ secrets.CAPSOLVER_KEY }}
           YESCAPTCHA_KEY: ${{ secrets.YESCAPTCHA_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python soliumbra_claim.py --kind hourly --notify --quiet-ok
-
-      - name: daily
-        continue-on-error: true
-        env:
-          SOLIUMBRA_COOKIE: ${{ secrets.SOLIUMBRA_COOKIE }}
-          CAPSOLVER_KEY: ${{ secrets.CAPSOLVER_KEY }}
-          YESCAPTCHA_KEY: ${{ secrets.YESCAPTCHA_KEY }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python soliumbra_claim.py --kind daily --notify --quiet-ok
-
-      # 401 说明 cookie 过期，用 action 失败提醒你（GitHub 会给你发邮件）
-      - name: cookie 有效性
-        env:
-          SOLIUMBRA_COOKIE: ${{ secrets.SOLIUMBRA_COOKIE }}
-        run: python soliumbra_claim.py --check
+        run: python daemon.py --hours 5.5
