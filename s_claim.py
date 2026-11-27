@@ -69,7 +69,10 @@ def log(msg):
     line = "[%s] %s" % (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), msg)
     print(line)
     try:
-        with open(LOG_FILE, "a", encoding="utf-8") as f:
+        # 首次创建带 BOM：Windows 记事本 / PowerShell 5.1 才能正确识别为 UTF-8，
+        # 之后 append 用无 BOM 编码，避免文件里堆一串 BOM
+        enc = "utf-8" if os.path.exists(LOG_FILE) else "utf-8-sig"
+        with open(LOG_FILE, "a", encoding=enc) as f:
             f.write(line + "\n")
     except OSError:
         pass
