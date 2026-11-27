@@ -1,24 +1,27 @@
 name: s
 
+# 云端只做 cookie 健康探针，不再负责领取。
+#
+# 为什么：
+#   1. GitHub 的 schedule 在这个仓库上实测极不可靠（11 小时只触发 1 次，
+#      长跑 daemon 结束后排队的 cron 也全部没有接上）。
+#   2. 领取已经交给本地的 gui_claim.py（真实浏览器点按钮 + 点 Turnstile 复选框），
+#      云端再跑一份只会和本地争名额，互相返回「已经领过」。
+#   3. 但云端有个本地替代不了的能力：job 失败会发邮件到邮箱。
+#      cookie 过期时这是最省心的告警，所以每天探一次。
+#
+# 想临时手动领一次：Actions → Run workflow（会执行一次 --check，仅查看状态）。
+
 on:
   schedule:
-    # 这个 cron 现在只当「唤醒信号」。真正干活的是 daemon.py：
-    # 每次唤醒连续跑 5.5 小时，自己按整点领。
-    # 所以 cron 丢多少次都不致命 —— 只要 5.5 小时内成功唤醒一次就能续上。
-    # 实测 "3 * * * *" 在这种仓库上 11 小时只触发 1 次，所以选了非整点的 :07。
-    - cron: "7 * * * *"
+    # 每天 09:13 北京时间。避开整点（GitHub 整点高负载会丢任务）。
+    - cron: "13 1 * * *"
   workflow_dispatch:
 
-concurrency:
-  # 同一时间只跑一个。新触发的会排队，等当前那个跑完（5.5h）立刻接手。
-  group: claim
-  cancel-in-progress: false
-
 jobs:
-  run:
+  check:
     runs-on: ubuntu-latest
-    # GitHub 单个 job 上限 6 小时，留 10 分钟余量
-    timeout-minutes: 350
+    timeout-minutes: 5
     env:
       TZ: Asia/Shanghai
     steps:
@@ -31,11 +34,8 @@ jobs:
       - name: deps
         run: pip install --quiet requests
 
-      - name: daemon
+      - name: cookie 有效性
         env:
           S_COOKIE: ${{ secrets.S_COOKIE }}
-          CAPSOLVER_KEY: ${{ secrets.CAPSOLVER_KEY }}
-          YESCAPTCHA_KEY: ${{ secrets.YESCAPTCHA_KEY }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python daemon.py --hours 5.5
+        # 退出码 2 = cookie 失效 → 这个 step 红 → GitHub 发邮件提醒
+        run: python s_claim.py --check
